@@ -1,7 +1,8 @@
 package eu.webprofik.rozvoz;
 
-
 import android.app.Activity;
+import android.annotation.SuppressLint;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.Manifest;
 import android.content.DialogInterface;
@@ -52,9 +53,6 @@ public class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHold
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_record, parent, false);
-
-
-
         return new ViewHolder(view);
     }
 
@@ -83,12 +81,15 @@ public class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHold
 
                 Uri gmmIntentUri = Uri.parse("geo:0,0?q=" + Uri.encode(address));
                 Intent mapIntent = new Intent(Intent.ACTION_VIEW, gmmIntentUri);
+                mapIntent.setPackage("cz.seznam.mapy");
 
-                // Check if there is an app to handle the intent
-                if (mapIntent.resolveActivity(v.getContext().getPackageManager()) != null) {
+
+                try
+                {
                     v.getContext().startActivity(mapIntent);
-                } else {
-                    // Handle the case where there is no app to handle the intent
+                }
+                catch(ActivityNotFoundException ex)
+                {
                     Toast.makeText(v.getContext(), "No navigation app installed", Toast.LENGTH_SHORT).show();
                 }
             }
@@ -104,11 +105,13 @@ public class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHold
                 // Create an intent to start a phone call
                 Intent dialIntent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phoneNumber));
 
-                // Check if there is an app to handle the intent
-                if (dialIntent.resolveActivity(v.getContext().getPackageManager()) != null) {
+
+                try
+                {
                     v.getContext().startActivity(dialIntent);
-                } else {
-                    // Handle the case where there is no app to handle the intent
+                }
+                catch(ActivityNotFoundException ex)
+                {
                     Toast.makeText(v.getContext(), "No app to handle phone calls", Toast.LENGTH_SHORT).show();
                 }
             }
