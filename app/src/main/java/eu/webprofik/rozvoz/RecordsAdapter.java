@@ -1,8 +1,17 @@
 package eu.webprofik.rozvoz;
 
 
+import android.app.Activity;
+import android.content.Context;
+import android.Manifest;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.net.Uri;
+import android.os.Bundle;
+import android.os.Handler;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,13 +21,30 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.List;
 
 public class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
+    private static final int MY_PERMISSIONS_REQUEST_CALL_PHONE = 123; // You can use any integer value
+    private final Context context;
     public List<Record> records;
 
-    public RecordsAdapter(List<Record> records) {
+    private int actValue;
+    private String completePhoneValue;
+    private static final String PREFS_NAME = "settings";
+    private static final String ACT_KEY = "actValue";
+    private static final String COMPLETE_PHONE_KEY = "completePhoneValue";
+
+    public RecordsAdapter(Context context, List<Record> records) {
+        this.context = context;
+
+        // Retrieve values from SharedPreferences
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        actValue = prefs.getInt(ACT_KEY, 0);
+        completePhoneValue = prefs.getString(COMPLETE_PHONE_KEY, "");
         this.records = records;
     }
 
@@ -26,6 +52,9 @@ public class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHold
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_record, parent, false);
+
+
+
         return new ViewHolder(view);
     }
 
@@ -35,7 +64,14 @@ public class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHold
         holder.addressTextView.setText(record.getAddress());
         holder.phoneTextView.setText(record.getPhoneNumber());
         holder.isPaidCheckBox.setChecked(record.isPaid());
-        holder.priceTextView.setText(String.valueOf(record.getPrice()));
+        holder.isPaidCheckBox.setEnabled(false);
+        if (record.isPaid()){
+            holder.isPaidCheckBox.setTextColor(Color.GREEN);
+        }else {
+            holder.isPaidCheckBox.setTextColor(Color.RED);
+        }
+
+        holder.priceTextView.setText(String.valueOf(record.getPrice())+"€");
 
         // Set click listeners for the buttons
         holder.navigateButton.setOnClickListener(new View.OnClickListener() {
@@ -108,8 +144,74 @@ public class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHold
     public void deleteItem(int position) {
         // Odstránenie položky z dátového zoznamu (napr. List<MyData>)
         records.remove(position);
+        Toast.makeText(context, String.valueOf(actValue), Toast.LENGTH_SHORT).show();
+        actValue++;
+        saveToSharedPreferences();
+
+        if (getItemCount() == 0){
+            showConfirmationDialog();
+        }
+
+
+
 
         // Aktualizácia RecyclerView
         notifyItemRemoved(position);
+    }
+
+    private void showConfirmationDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        builder.setTitle("Zavolať");
+        builder.setMessage("Naozaj chceš zavolať na ukončenie rozvozu?");
+        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                // Call the method to make a phone call
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        // Show the dialog to confirm the call
+                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE)
+                                != PackageManager.PERMISSION_GRANTED) {
+                            // Request the permission
+                            ActivityCompat.requestPermissions((Activity) context,
+                                    new String[]{Manifest.permission.CALL_PHONE},
+                                    MY_PERMISSIONS_REQUEST_CALL_PHONE);
+                        } else {
+                            // Permission is already granted, proceed with making the call
+                            makePhoneCall("tel:" + completePhoneValue);
+                        }
+
+                        dialog.dismiss();
+                    }
+                }, 3000);
+
+            }
+        });
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                // User canceled the call
+                dialog.dismiss();
+            }
+        });
+
+        // Show the dialog
+        builder.show();
+    }
+
+    private void makePhoneCall(String phoneNumber) {
+        Intent dialIntent = new Intent(Intent.ACTION_CALL, Uri.parse(phoneNumber));
+        context.startActivity(dialIntent);
+        // Note: The code to end the call programmatically is not available due to security restrictions.
+        // You might need the CALL_PHONE permission in your AndroidManifest.xml.
+    }
+
+    private void saveToSharedPreferences() {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putInt(ACT_KEY, actValue);
+        editor.putString(COMPLETE_PHONE_KEY, completePhoneValue);
+        editor.apply();
     }
 }
